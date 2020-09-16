@@ -5868,6 +5868,12 @@ spec:
                           - type: string
                           description: Port the Alertmanager API is exposed on.
                           x-kubernetes-int-or-string: true
+                        proxyURL:
+                          description: Optional proxy URL that can be used as an alternative
+                            to specifying a name and namespace above. When specified,
+                            alerts will be pushed to this URL instead of a service
+                            running in this k8s cluster.
+                          type: string
                         scheme:
                           description: Scheme to use when firing alerts.
                           type: string

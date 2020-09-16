@@ -657,6 +657,10 @@ type AlertmanagerEndpoints struct {
 	// Version of the Alertmanager API that Prometheus uses to send alerts. It
 	// can be "v1" or "v2".
 	APIVersion string `json:"apiVersion,omitempty"`
+	// Optional proxy URL that can be used as an alternative to specifying
+	// a name and namespace above. When specified, alerts will be pushed to
+	// this URL instead of a service running in this k8s cluster.
+	ProxyURL string `json:"proxyURL,omitempty"`
 	// Timeout is a per-target Alertmanager timeout when pushing alerts.
 	Timeout *string `json:"timeout,omitempty"`
 }

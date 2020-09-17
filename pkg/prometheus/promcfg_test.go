@@ -1356,11 +1356,7 @@ func TestAlertmanagerProxyURL(t *testing.T) {
 				Alerting: &monitoringv1.AlertingSpec{
 					Alertmanagers: []monitoringv1.AlertmanagerEndpoints{
 						{
-							// TODO: make these optional
-							Name:      "n/a",
-							Namespace: "n/a",
-							Port:      intstr.FromString("n/a"),
-							ProxyURL:  "http://localhost:3000/foobar",
+							ProxyURL: "http://localhost:3000/foobar",
 						},
 					},
 				},
@@ -1396,22 +1392,9 @@ alerting:
   - action: labeldrop
     regex: prometheus_replica
   alertmanagers:
-  - path_prefix: / (TODO!)
-    scheme: http (TODO!)
-    kubernetes_sd_configs:
-    - role: endpoints
-      namespaces:
-        names:
-        - default (TODO!)
-    relabel_configs:
-    - action: keep
-      source_labels:
-      - __meta_kubernetes_service_name
-      regex: alertmanager-main (TODO!)
-    - action: keep
-      source_labels:
-      - __meta_kubernetes_endpoint_port_name
-      regex: web (TODO!)
+  - path_prefix: /
+    scheme: http
+    proxy_url: http://localhost:3000/foobar
 `
 
 	result := string(cfg)

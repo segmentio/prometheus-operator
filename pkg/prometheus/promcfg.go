@@ -1259,18 +1259,22 @@ func (cg *configGenerator) generateAlertmanagerConfig(version semver.Version, am
 	// config as well, make sure to path the right namespace here.
 	cfg = addTLStoYaml(cfg, "", am.TLSConfig)
 
-	switch version.Major {
-	case 1:
-		if version.Minor < 7 {
-			if apiserverConfig != nil {
-				level.Info(cg.logger).Log("msg", "custom apiserver config is set but it will not take effect because prometheus version is < 1.7")
+	if am.ProxyURL != "" {
+		cfg = append(cfg, yaml.MapItem{Key: "proxy_url", Value: am.ProxyURL})
+	} else {
+		switch version.Major {
+		case 1:
+			if version.Minor < 7 {
+				if apiserverConfig != nil {
+					level.Info(cg.logger).Log("msg", "custom apiserver config is set but it will not take effect because prometheus version is < 1.7")
+				}
+				cfg = append(cfg, cg.generateK8SSDConfig(nil, nil, nil, kubernetesSDRoleEndpoint))
+			} else {
+				cfg = append(cfg, cg.generateK8SSDConfig([]string{am.Namespace}, apiserverConfig, basicAuthSecrets, kubernetesSDRoleEndpoint))
 			}
-			cfg = append(cfg, cg.generateK8SSDConfig(nil, nil, nil, kubernetesSDRoleEndpoint))
-		} else {
+		case 2:
 			cfg = append(cfg, cg.generateK8SSDConfig([]string{am.Namespace}, apiserverConfig, basicAuthSecrets, kubernetesSDRoleEndpoint))
 		}
-	case 2:
-		cfg = append(cfg, cg.generateK8SSDConfig([]string{am.Namespace}, apiserverConfig, basicAuthSecrets, kubernetesSDRoleEndpoint))
 	}
 
 	if am.BearerTokenFile != "" {
@@ -1283,37 +1287,39 @@ func (cg *configGenerator) generateAlertmanagerConfig(version semver.Version, am
 		}
 	}
 
-	var relabelings []yaml.MapSlice
+	if am.ProxyURL == "" {
+		var relabelings []yaml.MapSlice
 
-	relabelings = append(relabelings, yaml.MapSlice{
-		{Key: "action", Value: "keep"},
-		{Key: "source_labels", Value: []string{"__meta_kubernetes_service_name"}},
-		{Key: "regex", Value: am.Name},
-	})
-
-	if am.Port.StrVal != "" {
 		relabelings = append(relabelings, yaml.MapSlice{
 			{Key: "action", Value: "keep"},
-			{Key: "source_labels", Value: []string{"__meta_kubernetes_endpoint_port_name"}},
-			{Key: "regex", Value: am.Port.String()},
+			{Key: "source_labels", Value: []string{"__meta_kubernetes_service_name"}},
+			{Key: "regex", Value: am.Name},
 		})
-	} else if am.Port.IntVal != 0 {
-		relabelings = append(relabelings, yaml.MapSlice{
-			{Key: "action", Value: "keep"},
-			{Key: "source_labels", Value: []string{"__meta_kubernetes_pod_container_port_number"}},
-			{Key: "regex", Value: am.Port.String()},
-		})
+
+		if am.Port.StrVal != "" {
+			relabelings = append(relabelings, yaml.MapSlice{
+				{Key: "action", Value: "keep"},
+				{Key: "source_labels", Value: []string{"__meta_kubernetes_endpoint_port_name"}},
+				{Key: "regex", Value: am.Port.String()},
+			})
+		} else if am.Port.IntVal != 0 {
+			relabelings = append(relabelings, yaml.MapSlice{
+				{Key: "action", Value: "keep"},
+				{Key: "source_labels", Value: []string{"__meta_kubernetes_pod_container_port_number"}},
+				{Key: "regex", Value: am.Port.String()},
+			})
+		}
+
+		if version.Major == 1 && version.Minor < 7 {
+			relabelings = append(relabelings, yaml.MapSlice{
+				{Key: "action", Value: "keep"},
+				{Key: "source_labels", Value: []string{"__meta_kubernetes_namespace"}},
+				{Key: "regex", Value: am.Namespace},
+			})
+		}
+
+		cfg = append(cfg, yaml.MapItem{Key: "relabel_configs", Value: relabelings})
 	}
-
-	if version.Major == 1 && version.Minor < 7 {
-		relabelings = append(relabelings, yaml.MapSlice{
-			{Key: "action", Value: "keep"},
-			{Key: "source_labels", Value: []string{"__meta_kubernetes_namespace"}},
-			{Key: "regex", Value: am.Namespace},
-		})
-	}
-
-	cfg = append(cfg, yaml.MapItem{Key: "relabel_configs", Value: relabelings})
 
 	return cfg
 }

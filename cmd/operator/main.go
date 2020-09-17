@@ -216,7 +216,7 @@ func Main() int {
 	logger = log.With(logger, "ts", log.DefaultTimestampUTC)
 	logger = log.With(logger, "caller", log.DefaultCaller)
 
-	logger.Log("msg", fmt.Sprintf("Starting Prometheus Operator version '%v'.", version.Version))
+	logger.Log("msg", fmt.Sprintf("Starting Prometheus Operator version '%v' (colin: v1).", version.Version))
 
 	if len(ns) > 0 && len(deniedNs) > 0 {
 		fmt.Fprint(os.Stderr, "--namespaces and --deny-namespaces are mutually exclusive. Please provide only one of them.\n")

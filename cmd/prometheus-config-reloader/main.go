@@ -84,7 +84,7 @@ func main() {
 		}
 	}
 
-	logger.Log("msg", fmt.Sprintf("Starting prometheus-config-reloader version '%v'.", version.Version))
+	logger.Log("msg", fmt.Sprintf("Starting prometheus-config-reloader version '%v' (colin: v1).", version.Version))
 
 	var g run.Group
 	{

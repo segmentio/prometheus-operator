@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -583,6 +584,17 @@ func (c *Operator) handlePrometheusDelete(obj interface{}) {
 }
 
 func (c *Operator) handlePrometheusUpdate(old, cur interface{}) {
+	// Logs
+	jo, err := json.Marshal(old.(*monitoringv1.Prometheus))
+	if err != nil {
+		level.Debug(c.logger).Log("msg", "Prometheus update triggered but failed to marshal old", "err", err)
+	}
+	jc, err := json.Marshal(cur.(*monitoringv1.Prometheus))
+	if err != nil {
+		level.Debug(c.logger).Log("msg", "Prometheus update triggered but failed to marshal cur", "err", err)
+	}
+	level.Debug(c.logger).Log("msg", "Prometheus update triggered", "old", jo, "cur", jc)
+
 	if old.(*monitoringv1.Prometheus).ResourceVersion == cur.(*monitoringv1.Prometheus).ResourceVersion {
 		return
 	}

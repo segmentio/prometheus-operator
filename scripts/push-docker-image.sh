@@ -6,40 +6,24 @@ set -o pipefail
 # error on unset variables
 set -u
 
-CPU_ARCHS="amd64 arm64 arm"
+# docker run -it --rm -v $(pwd):/workdir -w /workdir 528451384384.dkr.ecr.us-west-2.amazonaws.com/buildkite-agent-golang1.14 make operator
 
-export TAG="${GITHUB_REF##*/}"
+CPU_ARCHS="amd64 arm64"
+TAG="colin-proxy-url"
+REPO="528451384384.dkr.ecr.us-west-2.amazonaws.com/prometheus-operator"
 
-# Push `-dev` images unless commit is tagged
-export REPO="${REPO:-"quay.io/prometheus-operator/prometheus-operator-dev"}"
-export REPO_PROMETHEUS_CONFIG_RELOADER="${REPO_PROMETHEUS_CONFIG_RELOADER:-"quay.io/prometheus-operator/prometheus-config-reloader-dev"}"
-
-# Use main image repositories if TAG is a semver tag or it is a master branch
-if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+ ]] || [ "${TAG}" == "master" ]; then
-	export REPO="quay.io/prometheus-operator/prometheus-operator"
-	export REPO_PROMETHEUS_CONFIG_RELOADER="quay.io/prometheus-operator/prometheus-config-reloader"
-fi
-
-for arch in ${CPU_ARCHS}; do
-	make --always-make image GOARCH="$arch" TAG="${TAG}-$arch"
+for arch in $(echo "$CPU_ARCHS"); do
+	docker build --build-arg ARCH=${arch} --build-arg OS=linux -t ${REPO}:${TAG}-${arch} .
+	aws-okta exec ops-write -- docker push "${REPO}:${TAG}-${arch}"
 done
 
 export DOCKER_CLI_EXPERIMENTAL=enabled
-for r in ${REPO} ${REPO_PROMETHEUS_CONFIG_RELOADER}; do
-	# Images need to be on remote registry before creating manifests
-	for arch in $CPU_ARCHS; do
-		docker push "${r}:${TAG}-$arch"
-	done
+docker manifest create -a "${REPO}:${TAG}" \
+  "${REPO}:${TAG}-amd64" \
+  "${REPO}:${TAG}-arm64"
 
-	# Create manifest to join all images under one virtual tag
-	docker manifest create -a "${r}:${TAG}" \
-				  "${r}:${TAG}-amd64" \
-				  "${r}:${TAG}-arm64" \
-				  "${r}:${TAG}-arm"
-
-	# Annotate to set which image is build for which CPU architecture
-	for arch in $CPU_ARCHS; do
-		docker manifest annotate --arch "$arch" "${r}:${TAG}" "${r}:${TAG}-$arch"
-	done
-	docker manifest push "${r}:${TAG}"
+for arch in $(echo "$CPU_ARCHS"); do
+	docker manifest annotate --arch "${arch}" "${REPO}:${TAG}" "${REPO}:${TAG}-${arch}"
 done
+
+aws-okta exec ops-write -- docker manifest push "${REPO}:${TAG}"
